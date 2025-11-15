@@ -4,8 +4,10 @@
             <p slot="title">用户积分流水</p>
 
             <Input v-model="search.user_id" placeholder="用户ID" clearable style="width: 200px" />
-            <DatePicker type="date" v-model="search.create_time" placeholder="选择日期"
-                style="width: 160px; margin-left: 8px" @on-change="onDateChange" />
+            <DatePicker type="daterange" v-model="search.dateRange" placeholder="选择时间范围"
+                style="width: 260px; margin-left: 8px" @on-change="onDateChange"></DatePicker>
+            <!-- <DatePicker type="date" v-model="search.create_time" placeholder="选择日期"
+                style="width: 160px; margin-left: 8px" @on-change="onDateChange" /> -->
             <!-- <DatePicker type="date" v-model="search.create_time" placeholder="选择日期" style="width: 160px; margin-left: 8px" /> -->
             &nbsp;
             <Button type="primary" @click="onSearch">搜索</Button>
@@ -69,6 +71,8 @@
 
 <script>
 import { queryScoreList } from "@/api/score.js";
+import { search } from "core-js/fn/symbol";
+import { DatePicker } from "view-design";
 
 export default {
     data() {
@@ -77,7 +81,10 @@ export default {
             total: 0,
             search: {
                 user_id: "",
-                create_time: '',
+                // create_time: '',
+                start_time: "",
+                end_time:"",
+                dateRange: [],
                 page: 1,
                 limit: 10,
             },
@@ -135,6 +142,14 @@ export default {
     },
 
     methods: {
+        formatDate(d) {
+            if (!d) return "";
+            const date = new Date(d);
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+        },
         cancelCount() {
             this.countJobId++;   // 递增任务号 -> 让旧任务失效
             this.isCounting = false;
@@ -145,27 +160,49 @@ export default {
             this.countTodayScore();  // 重新开始新统计
         },
         // ✅ 日期变化时自动刷新
-        onDateChange(date) {
-            if (date) {
-                this.search.create_time = new Date(date).toISOString().slice(0, 10);
-                this.cancelCount();
-                this.queryList(true);
-                this.countTodayScore(); // 同步刷新统计
+        onDateChange(dates) {
+            // if (date) {
+            //     this.search.create_time = new Date(date).toISOString().slice(0, 10);
+            //     this.cancelCount();
+            //     this.queryList(true);
+            //     this.countTodayScore(); // 同步刷新统计
+            // }
+            if(dates && dates.length == 2) {
+                this.search.start_time = this.formatDate(dates[0]);
+                this.search.end_time = this.formatDate(dates[1]);
+            } else {
+                this.search.start_time = '';
+                this.search.end_time = '';
             }
+
+            this.cancelCount();
+            this.queryList(true);
+            this.countTodayScore();
         },
         // ✅ 统计当日积分信息
         async countTodayScore() {
             try {
-                const date =
-                    this.search.create_time && this.search.create_time.trim() !== ""
-                        ? this.search.create_time
-                        : new Date().toISOString().slice(0, 10); // "2025-11-03"
+                // const date =
+                //     this.search.create_time && this.search.create_time.trim() !== ""
+                //         ? this.search.create_time
+                //         : new Date().toISOString().slice(0, 10); // "2025-11-03"
+                
+                let start = this.search.start_time;
+                let end = this.search.end_time;
+                //如果当前没选范围，就按“今天”统计
+                if(!start || !end) {
+                    const today = this.formatDate(new Date());
+                    start = today;
+                    end = today;
+                }
                 const params = {
                     page: 1,
                     limit: 10,
+                    start_time: start,
+                    end_time: end,
                     // ...this.search,
                     // page: 1,
-                    create_time: date, // 强制设为当天
+                    // create_time: date, // 强制设为当天
                 };
                 console.log("📤 请求统计参数：", params);
 
@@ -181,7 +218,7 @@ export default {
                 // ✅ 兼容两种返回格式
                 const data = res || {};
                 // 后端直接返回的统计字段（单位：分）
-                const total = Number(data.video_score +  data.sign_score|| 0);
+                const total = Number(data.video_score + data.sign_score || 0);
                 const exchange = Number(data.exchange_score || 0);
                 const video = Number(data.video_score || 0);
                 const sign = Number(data.sign_score || 0);
@@ -232,6 +269,10 @@ export default {
             }
             const hasuser_dateSearch = this.search.create_time !== -1;
             const params = { ...this.search };
+            if(this.search.start_time && this.search.end_time) {
+                params.start_time = this.search.start_time;
+                params.end_time = this.search.end_time;
+            }
             console.log("📤 请求参数：", params);
 
             queryScoreList(params)

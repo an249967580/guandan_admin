@@ -22,6 +22,10 @@ export function batchSetBan(data) {
   return axiosHttp('/admin/Users/batchSetBan', data);
 }
 
+export function batchDeleteUsers(data) {
+  return axiosHttp('/admin/Users/batchDeleteUsers', data);
+}
+
 
 
 

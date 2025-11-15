@@ -30,6 +30,9 @@
             <Button type="error" style="margin-left: 8px" :disabled="!selectedUsers.length" @click="batchSetBan(0)">
                 批量解封
             </Button>
+            <Button type="error" style="margin-left: 8px" :disabled="!selectedUsers.length" @click="batchDeleteUsers">
+                批量删除
+            </Button>
             <!-- <Button type="primary" slot="extra" @click="addInfo">发布</Button> -->
         </Card>
         <Row>
@@ -85,7 +88,7 @@
 
 </template>
 <script>
-import { queryList, setRole, setBan, batchSetBan } from "@/api/users.js";
+import { queryList, setRole, setBan, batchSetBan, batchDeleteUsers } from "@/api/users.js";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import user from "../../store/module/user";
@@ -215,6 +218,41 @@ export default {
         }
     },
     methods: {
+        batchDeleteUsers() {
+            if(this.selectedUsers.length === 0) {
+                this.$Message.warning("请先选择要删除的用户");
+                return;
+            }
+
+            this.$Modal.confirm({
+                title: "确认删除选中用户吗？",
+                content: `共 ${this.selectedUsers.length} 位用户将被永久删除，不可恢复！`,
+                onOk: () => {
+                    const params = {
+                        user_ids: this.selectedUsers.join(',')
+                    };
+
+                    batchDeleteUsers(params)
+                    .then(res => {
+                        if(res === true || res === '操作成功') {
+                            this.$Message.success('删除成功');
+                            this.queryList();
+                        }
+                        else {
+                            this.$Message.error(res || '删除失败');
+                        }
+                        console.log('删除返回的数据', res);
+                    })
+                    .catch(()=>{
+                        this.$Message.error('请求失败');
+                    })
+                    .finally(()=>{
+                        this.selectedUsers = [];
+                    })
+                }
+            })
+        },
+        
         countAllGold() {
             const params = {
                 page: 1,
